@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>RM Audit Checkpoint</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{--bg:#F4F3EF;--surface:#FFFFFF;--surface2:#F8F7F3;--border:#E4E2DA;--text:#1A1917;--muted:#7A7870;--green:#166534;--green-bg:#DCFCE7;--red:#991B1B;--red-bg:#FEE2E2;--amber:#92400E;--amber-bg:#FEF3C7;--blue:#1D4ED8;--blue-bg:#DBEAFE;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:100px}
+
+/* Header */
+.header{background:var(--text);color:#fff;padding:16px 20px 14px;position:sticky;top:0;z-index:100}
+.header-top{display:flex;align-items:center;justify-content:space-between}
+.logo{font-size:16px;font-weight:600;letter-spacing:-0.3px;line-height:1.2}
+.logo span{color:#A8A49A;font-weight:400;font-size:13px}
+.header-sub{font-size:11px;color:#A8A49A;margin-top:3px;font-family:'DM Mono',monospace}
+.progress-bar{height:3px;background:#333;margin-top:12px;border-radius:2px;overflow:hidden}
+.progress-fill{height:100%;background:#fff;border-radius:2px;transition:width 0.4s ease}
+
+/* Step nav */
+.steps-nav{display:flex;gap:6px;padding:12px 16px;overflow-x:auto;scrollbar-width:none;background:var(--surface);border-bottom:1px solid var(--border)}
+.steps-nav::-webkit-scrollbar{display:none}
+.step-pill{flex-shrink:0;font-size:11px;font-weight:500;padding:5px 12px;border-radius:20px;border:1px solid var(--border);color:var(--muted);background:var(--bg);font-family:'DM Mono',monospace}
+.step-pill.active{background:var(--text);color:#fff;border-color:var(--text)}
+.step-pill.done{background:var(--green-bg);color:var(--green);border-color:#BBF7D0}
+
+/* Sections */
+.section{display:none;padding:18px}
+.section.active{display:block}
+
+/* Card */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:14px}
+.card-title{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:14px}
+
+/* Fields */
+.field{margin-bottom:14px}
+.field label{font-size:13px;font-weight:500;color:var(--muted);display:block;margin-bottom:6px}
+.field input,.field select,.field textarea{width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:15px;color:var(--text);background:var(--surface2);appearance:none;outline:none;transition:border-color 0.2s}
+.field input:focus,.field select:focus{border-color:var(--text);background:#fff}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+/* RM Lookup */
+.rm-lookup{background:var(--blue-bg);border:1px solid #BFDBFE;border-radius:14px;padding:18px;margin-bottom:14px}
+.rm-lookup-title{font-size:12px;font-weight:600;color:var(--blue);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px}
+.rm-lookup .field input{background:#fff;font-family:'DM Mono',monospace;font-size:18px;font-weight:600;letter-spacing:2px;text-transform:uppercase}
+.rm-result{display:none;margin-top:12px;padding:12px;background:#fff;border-radius:10px;border:1px solid #BFDBFE}
+.rm-result.show{display:block}
+.rm-name{font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px}
+.rm-cat{display:inline-block;font-size:11px;font-weight:500;padding:3px 10px;border-radius:20px;background:var(--text);color:#fff;font-family:'DM Mono',monospace}
+.rm-not-found{display:none;margin-top:10px;padding:10px 12px;background:var(--red-bg);border-radius:8px;font-size:13px;color:var(--red);border:1px solid #FCA5A5}
+.rm-not-found.show{display:block}
+
+/* Inspector row */
+.inspector-row{display:flex;gap:10px;margin-bottom:14px}
+.inspector-row .field{flex:1;margin-bottom:0}
+
+/* Checks */
+.check-item{border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;background:var(--surface)}
+.check-item:nth-child(even){background:var(--surface2)}
+.check-num{font-size:11px;font-family:'DM Mono',monospace;color:var(--muted);margin-bottom:4px}
+.check-text{font-size:14px;font-weight:500;color:var(--text);margin-bottom:10px;line-height:1.4}
+.status-row{display:flex;gap:6px}
+.status-btn{flex:1;padding:10px 4px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-weight:500;background:var(--bg);color:var(--muted);cursor:pointer;transition:all 0.15s;text-align:center}
+.status-btn.ok{background:var(--green-bg);color:var(--green);border-color:#86EFAC}
+.status-btn.notok{background:var(--red-bg);color:var(--red);border-color:#FCA5A5}
+.status-btn.na{background:var(--amber-bg);color:var(--amber);border-color:#FCD34D}
+.remarks-input{margin-top:8px;width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;background:var(--surface2);resize:none;outline:none;color:var(--text)}
+
+/* Overall result */
+.result-row{display:flex;gap:8px;margin-top:4px}
+.result-btn{flex:1;padding:14px 8px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;font-weight:600;background:var(--bg);color:var(--muted);cursor:pointer;text-align:center;transition:all 0.15s}
+.result-btn.pass{background:var(--green-bg);color:var(--green);border-color:#86EFAC}
+.result-btn.fail{background:var(--red-bg);color:var(--red);border-color:#FCA5A5}
+.result-btn.hold{background:var(--amber-bg);color:var(--amber);border-color:#FCD34D}
+
+/* Photo upload */
+.upload-zone{border:2px dashed var(--border);border-radius:14px;padding:28px 20px;text-align:center;background:var(--surface2);cursor:pointer;position:relative}
+.upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.upload-icon{font-size:34px;margin-bottom:8px}
+.upload-title{font-size:15px;font-weight:600;margin-bottom:4px}
+.upload-sub{font-size:13px;color:var(--muted)}
+.preview-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+.preview-item{position:relative;border-radius:10px;overflow:hidden;aspect-ratio:1;background:var(--border)}
+.preview-item img{width:100%;height:100%;object-fit:cover}
+.preview-remove{position:absolute;top:6px;right:6px;width:22px;height:22px;background:rgba(0,0,0,0.65);color:#fff;border:none;border-radius:50%;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
+.img-count{font-size:12px;color:var(--muted);margin-top:8px;font-family:'DM Mono',monospace}
+
+/* Bottom bar */
+.bottom-bar{position:fixed;bottom:0;left:0;right:0;padding:14px 20px;background:var(--surface);border-top:1px solid var(--border);display:flex;gap:10px;z-index:100}
+.btn-back{padding:14px 20px;border:1px solid var(--border);border-radius:12px;background:var(--bg);font-size:15px;font-weight:500;cursor:pointer;color:var(--text);font-family:'DM Sans',sans-serif}
+.btn-next{flex:1;padding:14px;border:none;border-radius:12px;background:var(--text);color:#fff;font-size:15px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:opacity 0.2s}
+.btn-next.green{background:#16A34A}
+.btn-next.loading{opacity:0.6;pointer-events:none}
+
+/* Success */
+.success-screen{display:none;padding:40px 20px;text-align:center}
+.success-screen.active{display:block}
+.success-icon{width:72px;height:72px;background:var(--green-bg);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 20px}
+.success-title{font-size:22px;font-weight:600;margin-bottom:8px}
+.success-sub{font-size:15px;color:var(--muted);line-height:1.6}
+.success-meta{margin-top:20px;padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:12px;text-align:left}
+.meta-row{display:flex;justify-content:space-between;padding:7px 0;font-size:13px;border-bottom:1px solid var(--border)}
+.meta-row:last-child{border-bottom:none}
+.meta-label{color:var(--muted)}
+.meta-val{font-weight:500;font-family:'DM Mono',monospace;font-size:12px;text-align:right;max-width:60%}
+.btn-new{margin-top:20px;width:100%;padding:16px;border:none;border-radius:12px;background:var(--text);color:#fff;font-size:16px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif}
+
+/* Toast */
+.toast{position:fixed;top:80px;left:50%;transform:translateX(-50%);background:var(--text);color:#fff;padding:10px 20px;border-radius:30px;font-size:13px;font-weight:500;z-index:300;opacity:0;transition:opacity 0.3s;white-space:nowrap;pointer-events:none}
+.toast.show{opacity:1}
+
+/* No checks */
+.no-checks{text-align:center;padding:30px 20px;color:var(--muted)}
+.no-checks-icon{font-size:40px;margin-bottom:10px}
+
+/* Settings btn */
+.settings-btn{background:none;border:none;cursor:pointer;color:#A8A49A;padding:4px}
+
+/* CSV upload hint */
+.csv-hint{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5}
+.csv-upload-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border:1px dashed var(--border);border-radius:8px;font-size:13px;color:var(--muted);cursor:pointer;background:var(--surface2);position:relative;margin-top:8px}
+.csv-upload-btn input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.csv-success{font-size:12px;color:var(--green);margin-top:6px;font-weight:500}
+
+/* Settings sheet */
+.config-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;align-items:flex-end}
+.config-overlay.show{display:flex}
+.config-sheet{background:var(--surface);border-radius:20px 20px 0 0;padding:24px 20px 40px;width:100%;max-height:90vh;overflow-y:auto}
+.config-title{font-size:17px;font-weight:600;margin-bottom:16px}
+.config-section{margin-bottom:20px}
+.config-section-title{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px}
+.config-field label{font-size:13px;font-weight:500;margin-bottom:6px;display:block;color:var(--muted)}
+.config-field input{width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:10px;font-size:13px;font-family:'DM Mono',monospace;outline:none;background:var(--surface2);margin-bottom:10px}
+.config-field input:focus{border-color:var(--text)}
+.btn-save-config{width:100%;margin-top:8px;padding:15px;border:none;border-radius:12px;background:var(--text);color:#fff;font-size:15px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif}
+.connected-badge{display:inline-flex;align-items:center;gap:4px;background:var(--green-bg);color:var(--green);font-size:11px;font-weight:500;padding:2px 8px;border-radius:20px;margin-left:8px}
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<!-- Settings -->
+<div class="config-overlay" id="configOverlay">
+  <div class="config-sheet">
+    <div class="config-title">⚙ Settings</div>
+
+    <div class="config-section">
+      <div class="config-section-title">Inspector Name</div>
+      <div class="config-field">
+        <label>Your Name</label>
+        <input type="text" id="defaultInspector" placeholder="e.g. Rahul"/>
+      </div>
+    </div>
+
+    <div class="config-section">
+      <div class="config-section-title">Master Data — Upload CSV</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:10px;line-height:1.5">Upload a CSV file with your RM codes. Format: <b>RM Code, RM Name, Category</b> (no header row needed).</p>
+      <label class="csv-upload-btn">
+        <input type="file" accept=".csv" id="csvFile" onchange="loadCSV(this)"/>
+        📂 Choose CSV File
+      </label>
+      <div class="csv-success" id="csvSuccess" style="display:none"></div>
+      <p class="csv-hint">Don't have a CSV? Download the template first.</p>
+      <button onclick="downloadCSVTemplate()" style="margin-top:8px;padding:9px 16px;border:1px solid var(--border);border-radius:8px;background:var(--bg);font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;color:var(--text)">⬇ Download CSV Template</button>
+    </div>
+
+    <button class="btn-save-config" onclick="saveConfig()">Save & Close</button>
+  </div>
+</div>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-top">
+    <div>
+      <div class="logo">RM Audit Checkpoint <span id="connectedBadge"></span></div>
+      <div class="header-sub" id="headerStep">Step 1 of 3</div>
+    </div>
+    <button class="settings-btn" onclick="openConfig()">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:33%"></div></div>
+</div>
+
+<div class="steps-nav">
+  <div class="step-pill active" id="pill-1">01 Product</div>
+  <div class="step-pill" id="pill-2">02 Checks</div>
+  <div class="step-pill" id="pill-3">03 Photo</div>
+</div>
+
+<!-- ═══ STEP 1 — RM Code + Inspector ═══ -->
+<div class="section active" id="sec-1">
+  <div class="rm-lookup">
+    <div class="rm-lookup-title">Product Lookup</div>
+    <div class="field">
+      <label>RM Code</label>
+      <input type="text" id="rmCode" placeholder="e.g. RM001"
+        oninput="lookupRM(this.value)" autocomplete="off" autocapitalize="characters"/>
+    </div>
+    <div class="rm-result" id="rmResult">
+      <div class="rm-name" id="rmNameDisplay">—</div>
+      <div class="rm-cat" id="rmCatDisplay">—</div>
+    </div>
+    <div class="rm-not-found" id="rmNotFound">No product found for this RM Code</div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Inspector Info</div>
+    <div class="field-row">
+      <div class="field">
+        <label>Inspector Name</label>
+        <input type="text" id="inspector" placeholder="Your name"/>
+      </div>
+      <div class="field">
+        <label>Date</label>
+        <input type="date" id="date"/>
+      </div>
+    </div>
+    <div class="field">
+      <label>Shift</label>
+      <select id="shift">
+        <option value="">Select shift</option>
+        <option>Morning</option>
+        <option>Afternoon</option>
+        <option>Night</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ STEP 2 — Checkpoints ═══ -->
+<div class="section" id="sec-2">
+  <div id="checksContainer">
+    <div class="no-checks">
+      <div class="no-checks-icon">📋</div>
+      <div>Enter RM Code in Step 1 first</div>
+    </div>
+  </div>
+  <div class="card" id="overallCard" style="display:none">
+    <div class="card-title">Overall Result</div>
+    <div class="result-row">
+      <button class="result-btn" id="res-pass" onclick="setResult('Pass')">✓ Pass</button>
+      <button class="result-btn" id="res-fail" onclick="setResult('Fail')">✗ Fail</button>
+      <button class="result-btn" id="res-hold" onclick="setResult('Hold')">⏸ Hold</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ STEP 3 — Photo ═══ -->
+<div class="section" id="sec-3">
+  <div class="card">
+    <div class="card-title">Photo Evidence</div>
+    <div class="upload-zone">
+      <input type="file" accept="image/*" multiple id="imgInput" onchange="handleImages(this)"/>
+      <div class="upload-icon">📷</div>
+      <div class="upload-title">Take Photo or Upload</div>
+      <div class="upload-sub">Tap to open camera or gallery</div>
+    </div>
+    <div class="preview-grid" id="previewGrid"></div>
+    <div class="img-count" id="imgCount"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Notes</div>
+    <textarea class="remarks-input" id="finalNotes" rows="3" placeholder="Any additional remarks..."></textarea>
+  </div>
+</div>
+
+<!-- Success -->
+<div class="success-screen" id="successScreen">
+  <div class="success-icon">✓</div>
+  <div class="success-title">Audit Saved!</div>
+  <div class="success-sub">Record submitted to Google Sheet successfully.</div>
+  <div class="success-meta" id="successMeta"></div>
+  <button class="btn-new" onclick="resetForm()">Start New Audit</button>
+</div>
+
+<!-- Bottom bar -->
+<div class="bottom-bar" id="bottomBar">
+  <button class="btn-back" id="btnBack" onclick="prevStep()" style="display:none">← Back</button>
+  <button class="btn-next" id="btnNext" onclick="nextStep()">Continue →</button>
+</div>
+
+<script>
+// ── Hardcoded Google Apps Script URL ─────────────────────────────────────
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzmYmYLSBGQikze5hD7f7V8QFAUJ3EQVGpuMws_RQDXl7HA4GuG0ElFCHUfJEcXud3j/exec";
+
+// ── Default master data (replaced when CSV is uploaded) ──────────────────
+// Sample master data — upload your CSV via Settings to replace
+let MASTER = {
+  "RM001":{name:"dot glue sheet",cat:"PARTY SUPPLIES"},
+  "RM002":{name:"chrome silver balloons",cat:"BALLOONS"},
+  "RM003":{name:"STRAW",cat:"PACKING MATERIAL"},
+  "RM004":{name:"4D star gold",cat:"FOIL"},
+  "RM005":{name:"lotus hanging",cat:"FESTIVE SUPPLIES"},
+  "RM006":{name:"wisteria white",cat:"HANGING"},
+  "RM007":{name:"yellow rainbow bday cap",cat:"CAPS"},
+  "RM008":{name:"yellow galaxy curtain",cat:"NET/ NEXA/ GALAXY"},
+  "RM009":{name:"HBD silver cursive banner",cat:"BANNERS"},
+  "RM010":{name:"red hanging star christmas",cat:"CHRISTMAS SUPPLIES"},
+  "RM011":{name:"black popper",cat:"POPPER"},
+  "RM012":{name:"love caketopper pack of 2",cat:"CAKETOPPER"},
+  "RM013":{name:"golden fringe curtain 3*6",cat:"FRINGE"},
+  "RM014":{name:"led clipset 16pc plug",cat:"LIGHTS"},
+  "RM015":{name:"Sliding box",cat:"PACKAGING"},
+  "RM016":{name:"Round stand white",cat:"STAND"},
+  "RM017":{name:"gogear-armgloves",cat:"2-WHEELER ACCESSORIES"},
+  "RM018":{name:"Jungle backdrop",cat:"BACKDROP"},
+  "RM019":{name:"3D multicolour butterfly set of 12",cat:"WALL DECOR"},
+  "RM020":{name:"dice",cat:"GAMES"},
+  "RM021":{name:"Photo frame with stamp white",cat:"GIFT"},
+  "RM022":{name:"magic candle",cat:"CANDLES"},
+  "RM023":{name:"yellow minion box",cat:"RETURN GIFT"},
+  "RM024":{name:"gogear-carumbrella",cat:"CAR INTERIOR ACCESSORIES"},
+  "RM025":{name:"Peach vase",cat:"HOME FURNISHING"},
+  "RM026":{name:"white paper handbag",cat:"PAPER BAGS"},
+  "RM027":{name:"gogear-300gsm-microfiber",cat:"CLEANING ACCESSORIES"},
+  "RM028":{name:"hanuman mala",cat:"GOD IDOL"},
+  "RM029":{name:"Pink Bow Mug",cat:"MUG"},
+  "RM030":{name:"Kissing couple",cat:"MINIATURE"},
+  "RM031":{name:"pikachu",cat:"CROCHET"},
+  "RM032":{name:"india flag bunting set of 10",cat:"INDEPENDENCE/REPUBLIC"},
+  "RM033":{name:"gogear-reflector",cat:"EXTERIOR ACCESSORIES"},
+};
+
+const CHECKS={
+  "BALLOONS":["Size is same after filling air","No holes, cuts, or thin spots","Colour matches approved sample","No bubbles or bumps on surface","Neck is long enough — no cracks","No air loss within 24 hours"],
+  "FOIL":["Surface is smooth — no scratches","Colour is even — no patches","No tears or holes in sheet","Size matches the order","Finish is bright and clean"],
+  "BANNERS":["Print is straight — not tilted","No smudge or faded ink","Design matches approved artwork","Size is correct as per order","Colour is same across full banner","Edges are clean — no rough cuts"],
+  "BACKDROP":["Print is straight — not tilted","No colour bleed or smudge","Material has no tears or wrinkles","Size is correct as per order","All hooks or rings are in place","Design matches approved artwork"],
+  "CAKETOPPER":["Design matches approved artwork","Print is clear — no smudging","Stick is firmly attached","No sharp or pointed edges","Material is not bent or warped","Size is correct as per spec"],
+  "CANDLES":["Wick is centred and correct length","Wax surface is smooth — no cracks","Colour or fragrance matches spec","Flame is stable — no heavy smoke","No dirt or particles in wax","Height and width are within spec"],
+  "CAPS":["Print or text is clear and centred","Colour matches approved sample","No loose threads or rough edges","Elastic or strap works properly","Cap fits on head without trouble","No sharp parts on decorations"],
+  "NET/ NEXA/ GALAXY":["Length and width match the order","Galaxy/net print is clear and bright","No tears, holes, or fraying","Colour is same across full curtain","Loops or rod pocket are stitched","No stains or marks on material"],
+  "FRINGE":["Length and width match the order","No tears, holes, or fraying","Colour is same across full curtain","Fringes are evenly spaced","No stains or marks on material","Loops or rod pocket are stitched"],
+  "HANGING":["Shape is clean — no rough edges","Colour matches approved sample","No tears or breaks in material","Size is same across all pieces","Hanging hook or string is intact","Design is clear and undamaged"],
+  "FESTIVE SUPPLIES":["Design matches approved sample","Colour is bright and even","No tears or broken parts","Size is correct as per order","Assembly parts are all present","No sharp edges or loose pieces"],
+  "CHRISTMAS SUPPLIES":["Design matches approved sample","Colour is bright and even","No tears or broken parts","Size is correct as per order","Hanging hook or string is intact","No sharp edges or loose pieces"],
+  "PARTY SUPPLIES":["Design matches approved sample","Colour is even — no patches or fading","No tears, holes, or damage","Size is correct as per order","Material is clean — no stains","No sharp edges or rough surfaces"],
+  "WALL DECOR":["Shape is clean — no rough edges","Colour matches approved sample","No tears or breaks in material","Size is same across all pieces","Back side is clean and flat","Design is clear and undamaged"],
+  "LIGHTS":["All bulbs are working","Wire has no cuts or damage","Plug fits properly in socket","Length matches the order","Colour of light matches spec","On/off switch works correctly"],
+  "POPPER":["Popper fires correctly","No damage to outer casing","Content is intact — not spilled","Size is correct as per order","Label or print is clear","Safety info is present"],
+  "PACKAGING":["Box or pack is clean — no dents","Dimensions match the order","Print or label on pack is clear","Material is strong — not flimsy","Seal or closure works properly","No stains or marks on outside"],
+  "PACKING MATERIAL":["Material is clean and undamaged","Size or quantity matches the order","No tears, holes, or weak spots","Material is dry — not damp","Colour or type matches spec","Pack count is correct"],
+  "STAND":["Stand is stable — does not wobble","All parts are present","No cracks or breaks in material","Surface is smooth — no rough edges","Height and width match the order","Finish is clean — no peeling or rust"],
+  "PAPER BAGS":["Size matches the order","Handle is firmly attached","No tears or holes in the bag","Print or design is clear and centred","Material is clean — no stains","Base is strong — not flimsy"],
+  "GAMES":["All game parts are present","No broken or missing pieces","Instructions are included if needed","Colours are bright and clear","Box or pack is undamaged","Size matches the order"],
+  "GIFT":["Item is clean and undamaged","Design matches approved sample","Size is correct as per order","Colour matches approved sample","No scratches or dents on surface","Packaging or wrapping is intact"],
+  "RETURN GIFT":["Item is clean and undamaged","Design matches approved sample","Size is correct as per order","Colour matches approved sample","No scratches or dents on surface","Packaging or box is intact"],
+  "MUG":["No cracks or chips on mug","Print is clear and centred","Colour matches approved sample","Handle is firmly attached","Size matches the order","Surface is smooth and clean"],
+  "MINIATURE":["No broken or missing parts","Design matches approved sample","Colour is even and bright","Size is correct as per order","Surface is smooth — no rough edges","Base is flat and stable"],
+  "CROCHET":["Shape is correct — no loose stitches","Colour matches approved sample","No holes or gaps in crochet","Size is correct as per order","Stuffing is even if applicable","Eyes or accessories are firmly attached"],
+  "HOME FURNISHING":["Item is clean and undamaged","Design matches approved sample","Size is correct as per order","Colour matches approved sample","No scratches, dents, or marks","Material is strong — not flimsy"],
+  "GOD IDOL":["No cracks or broken parts","Design matches approved sample","Colour is even and bright","Size is correct as per order","Surface is smooth and clean","Base is flat and stable"],
+  "2-WHEELER ACCESSORIES":["Item is clean and undamaged","Size or fit matches the spec","Material is strong — no tears","Colour matches approved sample","All parts or accessories are present","No sharp edges or rough surfaces"],
+  "CAR INTERIOR ACCESSORIES":["Item is clean and undamaged","Size or fit matches the spec","Material is strong — no tears","Colour matches approved sample","All parts or accessories are present","No sharp edges or rough surfaces"],
+  "EXTERIOR ACCESSORIES":["Item is clean and undamaged","Size or fit matches the spec","Material is strong — no tears","Colour matches approved sample","All parts or accessories are present","No sharp edges or rough surfaces"],
+  "CLEANING ACCESSORIES":["Item is clean and undamaged","Material is of correct type and thickness","Size matches the order","Colour matches approved sample","No tears or loose threads","Pack count is correct"],
+  "INDEPENDENCE/REPUBLIC":["Design matches approved artwork","Colour is bright and even","No tears or broken parts","Size is correct as per order","Print is clear and undistorted","Material is clean — no stains"],
+};
+
+// ── State ─────────────────────────────────────────────────────────────────
+let currentStep=1, checkStatuses={}, overallResult="", uploadedImages=[], currentRM=null;
+const TOTAL_STEPS=3;
+
+// ── Init ──────────────────────────────────────────────────────────────────
+window.onload=function(){
+  document.getElementById("date").value=new Date().toISOString().split("T")[0];
+  const saved=localStorage.getItem("masterData");
+  if(saved){ try{MASTER=JSON.parse(saved);}catch(e){} }
+  const name=localStorage.getItem("inspectorName");
+  if(name) document.getElementById("inspector").value=name;
+};
+
+// ── Settings ──────────────────────────────────────────────────────────────
+function openConfig(){
+  document.getElementById("defaultInspector").value=localStorage.getItem("inspectorName")||"";
+  document.getElementById("csvSuccess").style.display="none";
+  document.getElementById("configOverlay").classList.add("show");
+}
+function saveConfig(){
+  const name=document.getElementById("defaultInspector").value.trim();
+  if(name){ localStorage.setItem("inspectorName",name); document.getElementById("inspector").value=name; }
+  document.getElementById("configOverlay").classList.remove("show");
+  showToast("Settings saved!");
+}
+document.getElementById("configOverlay").addEventListener("click",function(e){if(e.target===this)this.classList.remove("show");});
+
+// ── CSV Upload ────────────────────────────────────────────────────────────
+function loadCSV(input){
+  const file=input.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    const lines=e.target.result.trim().split("\n");
+    const newMaster={};
+    let count=0;
+    lines.forEach(line=>{
+      const parts=line.split(",").map(s=>s.trim().replace(/^"|"$/g,""));
+      if(parts.length>=3 && parts[0]){
+        newMaster[parts[0].toUpperCase()]={name:parts[1],cat:parts[2]};
+        count++;
+      }
+    });
+    if(count>0){
+      MASTER=newMaster;
+      localStorage.setItem("masterData",JSON.stringify(MASTER));
+      const el=document.getElementById("csvSuccess");
+      el.textContent=`✓ ${count} products loaded from CSV`;
+      el.style.display="block";
+      showToast(`${count} products loaded!`);
+    } else {
+      showToast("CSV format error — check file");
+    }
+  };
+  reader.readAsText(file);
+}
+
+function downloadCSVTemplate(){
+  const rows=["RM Code,RM Name,Category"];
+  Object.entries(MASTER).forEach(([code,rm])=>rows.push(`${code},${rm.name},${rm.cat}`));
+  const blob=new Blob([rows.join("\n")],{type:"text/csv"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="RM_Master_Data_Template.csv";
+  a.click();
+}
+
+// ── RM Lookup ─────────────────────────────────────────────────────────────
+function lookupRM(val){
+  const code=val.trim().toUpperCase();
+  const rm=MASTER[code];
+  document.getElementById("rmResult").classList.remove("show");
+  document.getElementById("rmNotFound").classList.remove("show");
+  if(!code){ currentRM=null; return; }
+  if(rm){
+    document.getElementById("rmNameDisplay").textContent=rm.name;
+    document.getElementById("rmCatDisplay").textContent=rm.cat;
+    document.getElementById("rmResult").classList.add("show");
+    currentRM={code,...rm};
+    buildChecks(rm.cat);
+  } else {
+    document.getElementById("rmNotFound").classList.add("show");
+    currentRM=null;
+    checkStatuses={};
+    document.getElementById("checksContainer").innerHTML=`<div class="no-checks"><div class="no-checks-icon">🔍</div><div>RM Code not found in master data</div></div>`;
+    document.getElementById("overallCard").style.display="none";
+  }
+}
+
+function buildChecks(cat){
+  const chks=CHECKS[cat]||[];
+  checkStatuses={};
+  const c=document.getElementById("checksContainer");
+  c.innerHTML="";
+  if(!chks.length){
+    c.innerHTML=`<div class="no-checks"><div class="no-checks-icon">⚠️</div><div>No checkpoints defined for category: ${cat}</div></div>`;
+    document.getElementById("overallCard").style.display="none";
+    return;
+  }
+  chks.forEach((chk,i)=>{
+    checkStatuses[i]={status:"",remarks:""};
+    const d=document.createElement("div");
+    d.className="check-item";
+    d.innerHTML=`<div class="check-num">Check ${i+1} of ${chks.length}</div>
+      <div class="check-text">${chk}</div>
+      <div class="status-row">
+        <button class="status-btn" id="s${i}-ok" onclick="setStatus(${i},'OK')">✓ OK</button>
+        <button class="status-btn" id="s${i}-notok" onclick="setStatus(${i},'NOT OK')">✗ Not OK</button>
+        <button class="status-btn" id="s${i}-na" onclick="setStatus(${i},'N/A')">— N/A</button>
+      </div>
+      <textarea class="remarks-input" placeholder="Remarks (optional)..." rows="1"
+        oninput="checkStatuses[${i}].remarks=this.value"></textarea>`;
+    c.appendChild(d);
+  });
+  document.getElementById("overallCard").style.display="block";
+}
+
+function setStatus(i,val){
+  checkStatuses[i].status=val;
+  [`s${i}-ok`,`s${i}-notok`,`s${i}-na`].forEach(id=>{
+    document.getElementById(id).className="status-btn";
+  });
+  if(val==="OK") document.getElementById(`s${i}-ok`).classList.add("ok");
+  if(val==="NOT OK") document.getElementById(`s${i}-notok`).classList.add("notok");
+  if(val==="N/A") document.getElementById(`s${i}-na`).classList.add("na");
+}
+
+function setResult(val){
+  overallResult=val;
+  document.querySelectorAll(".result-btn").forEach(b=>b.className="result-btn");
+  document.getElementById("res-"+val.toLowerCase()).classList.add(val.toLowerCase());
+}
+
+// ── Images ────────────────────────────────────────────────────────────────
+function handleImages(input){
+  Array.from(input.files).forEach(file=>{
+    if(uploadedImages.length>=4){showToast("Max 4 photos");return;}
+    const reader=new FileReader();
+    reader.onload=e=>{uploadedImages.push({file,dataUrl:e.target.result});renderPreviews();};
+    reader.readAsDataURL(file);
+  });
+  input.value="";
+}
+function renderPreviews(){
+  const g=document.getElementById("previewGrid");
+  g.innerHTML="";
+  uploadedImages.forEach((img,i)=>{
+    const d=document.createElement("div");
+    d.className="preview-item";
+    d.innerHTML=`<img src="${img.dataUrl}"><button class="preview-remove" onclick="removeImg(${i})">×</button>`;
+    g.appendChild(d);
+  });
+  document.getElementById("imgCount").textContent=uploadedImages.length?`${uploadedImages.length} photo${uploadedImages.length>1?"s":""} added`:"";
+}
+function removeImg(i){uploadedImages.splice(i,1);renderPreviews();}
+
+// ── Navigation ────────────────────────────────────────────────────────────
+function nextStep(){
+  if(!validateStep()) return;
+  if(currentStep===TOTAL_STEPS){submitRecord();return;}
+  currentStep++;updateUI();
+}
+function prevStep(){if(currentStep>1){currentStep--;updateUI();}}
+
+function updateUI(){
+  document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"));
+  document.getElementById(`sec-${currentStep}`).classList.add("active");
+  document.querySelectorAll(".step-pill").forEach((p,i)=>{
+    p.classList.remove("active","done");
+    if(i+1===currentStep) p.classList.add("active");
+    else if(i+1<currentStep) p.classList.add("done");
+  });
+  document.getElementById("headerStep").textContent=`Step ${currentStep} of ${TOTAL_STEPS}`;
+  document.getElementById("progressFill").style.width=(currentStep/TOTAL_STEPS*100)+"%";
+  document.getElementById("btnBack").style.display=currentStep>1?"block":"none";
+  const btn=document.getElementById("btnNext");
+  btn.textContent=currentStep===TOTAL_STEPS?"Submit Audit ✓":"Continue →";
+  btn.className=currentStep===TOTAL_STEPS?"btn-next green":"btn-next";
+  window.scrollTo(0,0);
+}
+
+function validateStep(){
+  if(currentStep===1){
+    if(!currentRM){showToast("Enter a valid RM Code");return false;}
+    if(!document.getElementById("inspector").value.trim()){showToast("Enter Inspector name");return false;}
+  }
+  return true;
+}
+
+// ── Submit ────────────────────────────────────────────────────────────────
+function compressImage(dataUrl,maxW,quality){
+  return new Promise(resolve=>{
+    const img=new Image();
+    img.onload=()=>{
+      const canvas=document.createElement("canvas");
+      let w=img.width,h=img.height;
+      if(w>maxW){h=Math.round(h*maxW/w);w=maxW;}
+      canvas.width=w;canvas.height=h;
+      canvas.getContext("2d").drawImage(img,0,0,w,h);
+      resolve(canvas.toDataURL("image/jpeg",quality));
+    };
+    img.src=dataUrl;
+  });
+}
+
+async function submitRecord(){
+  const btn=document.getElementById("btnNext");
+  btn.classList.add("loading");
+  btn.textContent="Saving...";
+
+  const chkList=CHECKS[currentRM.cat]||[];
+  const statuses=chkList.map((_,i)=>checkStatuses[i]?.status||"");
+  const remarks =chkList.map((_,i)=>checkStatuses[i]?.remarks||"");
+
+  const imgBase64=[];
+  for(const img of uploadedImages){
+    imgBase64.push(await compressImage(img.dataUrl,800,0.7));
+  }
+
+  const payload={
+    date:      document.getElementById("date").value,
+    inspector: document.getElementById("inspector").value,
+    shift:     document.getElementById("shift").value,
+    rmCode:    currentRM.code,
+    rmName:    currentRM.name,
+    category:  currentRM.cat,
+    checks:    chkList,
+    statuses,
+    remarks:   remarks.join(" | "),
+    overall:   overallResult,
+    notes:     document.getElementById("finalNotes").value,
+    images:    imgBase64,
+  };
+
+  try{
+    await fetch(SCRIPT_URL,{
+      method:"POST",
+      mode:"no-cors",
+      headers:{"Content-Type":"text/plain"},
+      body:JSON.stringify(payload),
+    });
+    showSuccess(payload);
+  } catch(e){
+    btn.classList.remove("loading");
+    btn.textContent="Submit Audit ✓";
+    showToast("Network error — check connection");
+  }
+}
+
+function showSuccess(p){
+  document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"));
+  document.getElementById("successScreen").classList.add("active");
+  document.getElementById("bottomBar").style.display="none";
+  document.querySelector(".steps-nav").style.display="none";
+  document.getElementById("successMeta").innerHTML=`
+    <div class="meta-row"><span class="meta-label">RM Code</span><span class="meta-val">${p.rmCode}</span></div>
+    <div class="meta-row"><span class="meta-label">Product</span><span class="meta-val">${p.rmName}</span></div>
+    <div class="meta-row"><span class="meta-label">Category</span><span class="meta-val">${p.category}</span></div>
+    <div class="meta-row"><span class="meta-label">Inspector</span><span class="meta-val">${p.inspector}</span></div>
+    <div class="meta-row"><span class="meta-label">Date</span><span class="meta-val">${p.date}</span></div>
+    <div class="meta-row"><span class="meta-label">Overall</span><span class="meta-val">${p.overall||"—"}</span></div>
+    <div class="meta-row"><span class="meta-label">Photos</span><span class="meta-val">${uploadedImages.length} uploaded</span></div>
+  `;
+}
+
+function resetForm(){
+  currentStep=1;currentRM=null;checkStatuses={};overallResult="";uploadedImages=[];
+  document.getElementById("rmCode").value="";
+  document.getElementById("rmResult").classList.remove("show");
+  document.getElementById("rmNotFound").classList.remove("show");
+  document.getElementById("finalNotes").value="";
+  document.getElementById("date").value=new Date().toISOString().split("T")[0];
+  document.getElementById("shift").value="";
+  document.getElementById("checksContainer").innerHTML=`<div class="no-checks"><div class="no-checks-icon">📋</div><div>Enter RM Code in Step 1 first</div></div>`;
+  document.getElementById("overallCard").style.display="none";
+  document.getElementById("previewGrid").innerHTML="";
+  document.getElementById("imgCount").textContent="";
+  document.getElementById("successScreen").classList.remove("active");
+  document.getElementById("bottomBar").style.display="flex";
+  document.querySelector(".steps-nav").style.display="flex";
+  updateUI();
+}
+
+function showToast(msg){
+  const t=document.getElementById("toast");
+  t.textContent=msg;t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"),2500);
+}
+</script>
+</body>
+</html>
